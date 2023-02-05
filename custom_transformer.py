@@ -1,5 +1,5 @@
 # Файл с обучением самописного трансформера
-# Трансформер обучается очень медленно (~30 часов на одну эпоху на GTX 3060)
+# Трансформер обучается очень медленно (~14 часов на одну эпоху на GTX 3060) используя 1/20 часть датасета М5
 # пока руки не дошли до ускорения его обучения
 
 import torch
@@ -55,18 +55,22 @@ if __name__ == "__main__":
     train_dataloader = train_subset.to_dataloader(train=True, batch_size=batch_size, num_workers=0)
     val_dataloader = val_subset.to_dataloader(train=False, batch_size=batch_size, num_workers=0)
 
+    # Создаем модель, оптимизатор, и задаем функцию ошибки
     model = Transformer(data, categorical_columns, real_columns, target_size=prediction_length)
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     loss_function = torch.nn.MSELoss()
 
-    src_mask = generate_square_subsequent_mask(encoder_length, encoder_length)
-    target_mask = generate_square_subsequent_mask(encoder_length, encoder_length)
+    # Создаем маски для декодера
+    src_mask = generate_square_subsequent_mask(prediction_length, prediction_length)
+    target_mask = generate_square_subsequent_mask(prediction_length, encoder_length)
 
-    epoch_train_losses = []
-    epoch_val_losses = []
+    epoch_train_losses = []  # Список в котором храним ошибки на обучающей выборке
+    epoch_val_losses = []    # Список в котором храним ошибки на валидационной выборке
     for epoch in range(epochs):
         model.train()
         batch_train_losses = []
+
+        # Обучающая эпоха
         for batch in tqdm.tqdm(iter(train_dataloader)):
             optimizer.zero_grad()
             input_data = batch[0]
@@ -83,6 +87,8 @@ if __name__ == "__main__":
 
         model.eval()
         batch_val_losses = []
+
+        # Валидационная эпоха
         for batch in tqdm.tqdm(iter(val_dataloader)):
             input_data = batch[0]
             targets = batch[0]['decoder_target'].to(device)
@@ -96,6 +102,7 @@ if __name__ == "__main__":
         epoch_train_losses.append(epoch_train_loss)
         epoch_val_losses.append(epoch_val_loss)
 
+        # Сохраняем обучение после каждой эпохи
         SAVE_STRING = SAVE_PATH+f'_Epoch={epoch}_TrainLoss={round(float(epoch_train_loss), 4)}_ValLoss={round(float(epoch_train_loss), 4)}'
         model.save(model.state_dict(), SAVE_STRING)
 

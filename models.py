@@ -50,7 +50,7 @@ class CustomTransformerEncoder(nn.Module):
 class CustomTransformerDecoder(nn.Module):
     def __init__(self, d_model, nhead, num_layers, **kwargs):
         super().__init__()
-        self.positional_encoder = PositionalEncoder(max_seq_len=encoder_length)
+        self.positional_encoder = PositionalEncoder(max_seq_len=prediction_length)
         self.resize = nn.Linear(1, d_model)
         self.relu = nn.ReLU()
         self.decoder_layers = nn.ModuleList([TransformerDecoderLayer(d_model, nhead=nhead, batch_first=True, **kwargs)
@@ -90,7 +90,7 @@ class Transformer(nn.Module):
                                                 num_layers=num_decoder_layers)
 
         self.flatten_layer = nn.Flatten()
-        self.output_layer = nn.Linear(encoder_length * transformer_size, target_size)
+        self.output_layer = nn.Linear(prediction_length * transformer_size, target_size)
 
         self.optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
 
@@ -104,10 +104,10 @@ class Transformer(nn.Module):
         return embeddings
 
     def forward(self, x, src_mask=None, target_mask=None):
-        x_cat, x_real, target = x['encoder_cat'], x['encoder_cont'], x['encoder_target']
+        x_cat, x_real, target = x['encoder_cat'], x['encoder_cont'], x['decoder_target']
         target = target.unsqueeze(-1)
         x = self.get_embeddings(x_cat, x_real)
-        encoder_outputs = self.encoder(x, src_mask)
+        encoder_outputs = self.encoder(x)
         decoder_outputs = self.decoder(target, encoder_outputs, src_mask, target_mask)
         flattened_decoder_outputs = self.flatten_layer(decoder_outputs)
         output = self.output_layer(flattened_decoder_outputs)
