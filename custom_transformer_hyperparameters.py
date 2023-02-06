@@ -2,7 +2,8 @@
 
 seed = 123
 epochs = 5
-encoder_length = 28 * 7
+max_encoder_length = 28 * 7
+min_encoder_length = max_encoder_length // 2
 prediction_length = 28
 batch_size = 256
 learning_rate = 0.001

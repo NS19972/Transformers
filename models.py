@@ -31,7 +31,7 @@ class PositionalEncoder(nn.Module):
 class CustomTransformerEncoder(nn.Module):
     def __init__(self, input_shape, d_model, nhead, num_layers, **kwargs):
         super().__init__()
-        self.positional_encoder = PositionalEncoder(max_seq_len=encoder_length)
+        self.positional_encoder = PositionalEncoder(max_seq_len=max_encoder_length)
         self.dimension_shift = nn.Linear(input_shape, d_model)
         self.relu = nn.ReLU()
         self.encoder_layers = nn.ModuleList([TransformerEncoderLayer(d_model, nhead=nhead, batch_first=True, **kwargs)

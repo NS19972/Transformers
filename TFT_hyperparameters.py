@@ -1,6 +1,7 @@
 # Гиперпараметры для модели Temporal Fusion Transform
 seed = 123
 max_encoder_length = 28 * 7
+min_encoder_length = max_encoder_length // 2
 max_prediction_length = 28
 batch_size = 128
 quantiles_list = [0.05, 0.1, 0.5, 0.9, 0.95]

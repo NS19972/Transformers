@@ -112,13 +112,13 @@ if __name__ == "__main__":
     torch.manual_seed(seed)
     np.random.seed(seed)
 
-    train_val_split_point = data['day'].max() - max_prediction_length
+    train_val_split_point = data['day'].max() - (max_prediction_length * 10)
 
     train_subset = TimeSeriesDataSet(data=data[lambda x: x.day <= train_val_split_point],
                                      time_idx='day',
                                      target='sales',
                                      group_ids=categorical_columns,
-                                     min_encoder_length=max_encoder_length//2,
+                                     min_encoder_length=min_encoder_length,
                                      max_encoder_length=max_encoder_length,
                                      min_prediction_length=1,
                                      max_prediction_length=max_prediction_length,
@@ -131,7 +131,25 @@ if __name__ == "__main__":
                                      add_encoder_length=True
                                      )
 
-    val_subset = TimeSeriesDataSet.from_dataset(train_subset, data, predict=True, stop_randomization=True)
+    # Создаем дата-генератор для валидации
+    val_subset = TimeSeriesDataSet(data=data[lambda x: x.day > (train_val_split_point - min_encoder_length)],
+                                   time_idx='day',
+                                   target='sales',
+                                   group_ids=categorical_columns,
+                                   min_encoder_length=max_encoder_length,
+                                   max_encoder_length=max_encoder_length,
+                                   min_prediction_length=max_prediction_length,
+                                   max_prediction_length=max_prediction_length,
+                                   static_categoricals=categorical_columns,
+                                   time_varying_known_reals=real_columns,
+                                   time_varying_unknown_reals=['sales'],
+                                   target_normalizer=GroupNormalizer(
+                                       groups=categorical_columns,
+                                       transformation="softplus"),
+                                   add_relative_time_idx=True,
+                                   add_target_scales=True,
+                                   add_encoder_length=True
+                                   )
 
     transformer = train_model(train_subset, val_subset)
 
