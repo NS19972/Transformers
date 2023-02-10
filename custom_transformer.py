@@ -20,9 +20,38 @@ torch.set_float32_matmul_precision('medium')
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 
+# Функция для оценки работы модели
+# Отмечается, что MAE ошибки трансформера и наивной модели примерно одинаковые (~1.2), однако медианная ошибка в
+# модели трансформера практический нулевая, тем временем как она составляет ~0.53 в наивном алгоритме
+def test_model(model, data_series):
+    dataloader = data_series.to_dataloader(train=False, batch_size=batch_size, num_workers=0)
+    all_errors = []
+    all_targets = []
+    for input_data, (targets, weights) in iter(dataloader):
+        model_predictions = model(input_data)
+        model_errors = (targets - model_predictions).abs()
+        all_targets.append(targets.numpy())
+        all_errors.append(model_errors.numpy())
+
+    all_errors = np.concatenate(all_errors)
+    all_targets = np.concatenate(targets)
+    # Средние и медианы ошибок по разным перцинтилям
+    print(f"Total MAE loss:", all_errors.mean())
+    print(f"Total MAE loss median:", np.median(all_errors))
+    print(pd.DataFrame(all_errors).describe().mean(axis=1))
+
+    naive_predictions = np.roll(all_targets, 1, dims=-1)
+    naive_errors = (all_targets - naive_predictions).abs()
+    print("Naive loss:", naive_errors.mean())
+    print("Naive loss median:", naive_errors.mean())
+    print(pd.DataFrame(naive_errors).describe().mean(axis=1))
+    return all_errors.mean(), all_errors.median()
+
+
 if __name__ == "__main__":
     data = pd.read_csv('./datasets/train_val_part.csv', index_col=0)
     data['sales'] = data['sales'].astype(np.float32)
+    results = {}
 
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -121,6 +150,11 @@ if __name__ == "__main__":
         epoch_val_losses.append(epoch_val_loss)
 
         # Сохраняем обучение после каждой эпохи
-        SAVE_STRING = SAVE_PATH+f'_Epoch={epoch}_TrainLoss={round(float(epoch_train_loss), 4)}_ValLoss={round(float(epoch_train_loss), 4)}'
-        model.save(model.state_dict(), SAVE_STRING)
+        SAVE_STRING = SAVE_PATH+f'CUSTOM_TRANSFORMER_SMALL' \
+                                f'_Epoch={epoch}_TrainLoss={round(float(epoch_train_loss), 4)}' \
+                                f'_ValLoss={round(float(epoch_train_loss), 4)}'
 
+        model.save(model.state_dict(), SAVE_STRING)
+        mean, median = test_model(model, data_series=val_subset)
+        results[f'Epoch_{epoch}'] = f"Mean loss: {mean}, Median loss: {median}"
+    print(results)
